@@ -8,8 +8,20 @@ CREATE TABLE users (
     username TEXT DEFAULT NULL,
     language_code TEXT DEFAULT NULL,
     is_premium BOOLEAN DEFAULT NULL,
+    added_to_attachment_menu BOOLEAN DEFAULT NULL,
+    can_join_groups BOOLEAN DEFAULT NULL,
+    can_read_all_group_messages BOOLEAN DEFAULT NULL,
+    supports_guest_queries BOOLEAN DEFAULT NULL,
+    supports_inline_queries BOOLEAN DEFAULT NULL,
+    can_connect_to_business BOOLEAN DEFAULT NULL,
+    has_main_web_app BOOLEAN DEFAULT NULL,
+    has_topics_enabled BOOLEAN DEFAULT NULL,
+    allows_users_to_create_topics BOOLEAN DEFAULT NULL,
+    can_manage_bots BOOLEAN DEFAULT NULL,
+
     zoneinfo TEXT DEFAULT NULL,
     date_db TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
     UNIQUE(username)
 );
 
@@ -23,9 +35,11 @@ CREATE TABLE chats (
     is_forum BOOLEAN DEFAULT NULL,
     is_direct_messages BOOLEAN DEFAULT NULL,
     language_code TEXT DEFAULT NULL,
+
     owner_id BIGINT REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL,
     zoneinfo TEXT DEFAULT NULL,    
     date_db TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
     UNIQUE(username)
 );
 
@@ -45,7 +59,7 @@ CREATE TABLE chats (
 CREATE TABLE api_keys (
     api_key TEXT PRIMARY KEY,
     permissions VARCHAR(4) NOT NULL DEFAULT 'r',
-    is_superkey BOOLEAN DEFAULT FALSE,
+    is_superkey BOOLEAN NOT NULL DEFAULT FALSE,
     owner_id BIGINT REFERENCES users(id) ON DELETE CASCADE DEFAULT NULL,
     date_db TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(owner_id)

@@ -1,6 +1,6 @@
-from psycopg import AsyncConnection, sql
+from psycopg import AsyncConnection#, sql
 from psycopg.rows import dict_row
-from psycopg.errors import UndefinedColumn
+#from psycopg.errors import UndefinedColumn
 
 from aiogram.types import User, Chat
 
@@ -40,7 +40,9 @@ class DbQuery:
         )
 
     #########################
+    #                       #
     #   Table "api_keys"    #
+    #                       #
     #########################
 
     async def api_key_create(
@@ -50,6 +52,15 @@ class DbQuery:
         is_superkey: bool = False,
         owner_id: int | None = None
     ) -> tuple[ApiKey | None, str | None]:
+        """
+        Creates API key in the database.
+
+        :param api_key: The API key. Case-sensitive. If :code:`None` is given, then it will be randomly generated based on :data:`base64`.
+        :param permissions: Permissions of the API key in format (example): 'cud', 'rd', 'cd', etc. Full rights would be 'crud'.
+        :param is_superkey: Superkey can CRUD (based on superkey's *permissions*) other API keys.
+        :param owner_id: Telegram ID of the API key's owner. Optional in DB.
+        :return: On success will return :class:`src.types.api_key.ApiKey` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
         try:
             async with self.conn.cursor() as cur:
                 if api_key is None:
@@ -61,8 +72,21 @@ class DbQuery:
                             """,
                             (api_key,)
                         )
-                        if not await cur.fetchone():
+                        if await cur.fetchone() is None:
                             break
+
+                if owner_id is not None:
+                    await cur.execute(
+                        """
+                        SELECT 1 FROM users WHERE id = %s
+                        """,
+                        (owner_id,)
+                    )
+                    if await cur.fetchone() is None:
+                        e: str = f"Database '{self.name}' error. User with the specified owner_id doesn't exist"
+                        print(f"[{self.tsr}] database {self.name}: api_key_create(): Error: {e}")
+                        await self.conn.rollback()
+                        return None, e
 
                 await cur.execute(
                     """
@@ -70,11 +94,11 @@ class DbQuery:
                     VALUES (%s, %s, %s, %s)
                     RETURNING *
                     """,
-                    (api_key, permissions, is_superkey, owner_id)
+                    (api_key, permissions.lower(), is_superkey, owner_id)
                 )
                 new_api_key: dict = await cur.fetchone()
                 if new_api_key is None:
-                    e = f"Database `{self.name}` unexpected error. API key wasn't created. Report this message"
+                    e: str = f"Database `{self.name}` unexpected error. API key wasn't created. Report this message"
                     print(f"[{self.tsr}] database {self.name}: api_key_create(): Unexpected error: {e}")
                     await self.conn.rollback()
                     return None, e
@@ -85,10 +109,22 @@ class DbQuery:
             await self.conn.rollback()
             return None, str(e)
 
+    #
+    # For security reasons there's no function with fetchall() return.
+    # Also (for the same reasons) there are no read and update functions with **kwargs;
+    # for updating there are only separate funcs for each column (except for `api_key` and `date_db`).
+    #
+
     async def api_key_read(
         self,
         api_key: str
     ) -> tuple[ApiKey | None, str | None]:
+        """
+        Reads the given API key in the database.
+
+        :param api_key: The API key whose data needs to be obtained.
+        :return: On success will return :class:`src.types.api_key.ApiKey` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
         try:
             async with self.conn.cursor() as cur:
                 await cur.execute(
@@ -99,7 +135,7 @@ class DbQuery:
                 )
                 api_key: dict = await cur.fetchone()
                 if api_key is None:
-                    e = f"Database '{self.name}' error. Given API key isn't exist"
+                    e: str = f"Database '{self.name}' error. Specified API key doesn't exist"
                     print(f"[{self.tsr}] database {self.name}: api_key_read(): Error: {e}")
                     return None, e
                 return ApiKey(**api_key), None
@@ -107,53 +143,115 @@ class DbQuery:
             print(f"[{self.tsr}] database {self.name}: api_key_read(): Unexpected error: {e}")
             return None, str(e)
 
-    #
-    # For security reasons there's no function with fetchall() return.
-    # Also (for the same reasons) there's no update function with **kwargs; only separate funcs.
-    #
-
-    async def api_key_update(
+    async def api_key_update_permissions(
         self,
         api_key: str,
-        allow_None_values: bool = False,
-        **columns_to_update
-    ) -> tuple[ApiKey | None, str | None]:
+        new_permissions: str = 'r'
+    ) -> tuple[bool | None, str | None]:
+        """
+        Updates the :code:`permissions` column for the given API key in the database.
+
+        :param api_key: The API key whose data needs to be updated.
+        :param new_permissions: New permissions for the API key in format (example): 'cud', 'rd', 'cd', etc. Full rights would be 'crud'.
+        :return: On success will return :code:`True` if column have been changed, otherwise :code:`False` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
         try:
-            columns = []
-            params = []
-
-            for column, value in columns_to_update.items():
-                if not allow_None_values and value is None:
-                    continue
-                columns.append(sql.SQL("{} = %s").format(sql.Identifier(column)))
-                params.append(value)
-            
-            query = sql.SQL(
-                """
-                UPDATE api_keys
-                SET {}
-                WHERE api_key = %s
-                RETURNING *
-                """
-            ).format(sql.SQL(", ").join(columns))
-            params.append(api_key)
-
             async with self.conn.cursor() as cur:
-                await cur.execute(query, params)
-                updated_api_key = await cur.fetchone()
-                if updated_api_key is None:
-                    e = f"Database '{self.name}' unexpected error. API key wasn't updated. Report this message"
-                    print(f"[{self.tsr}] database {self.name}: api_key_update(): Unexpected error: {e}")
-                    await self.conn.rollback()
-                    return None, e
+                await cur.execute(
+                    """
+                    UPDATE api_keys
+                    SET permissions = %s
+                    WHERE api_key = %s AND permissions != %s
+                    """,
+                    (new_permissions.lower(), api_key, new_permissions.lower())
+                )
+
+                if cur.rowcount == 0:
+                    return False, None
+
                 await self.conn.commit()
-                return ApiKey(**updated_api_key), None
-        except UndefinedColumn as e:
-            print(f"[{self.tsr}] database {self.name}: api_key_update(): UndefinedColumn error: {e}")
+                return True, None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: api_key_update_permissions(): Unexpected error: {e}")
             await self.conn.rollback()
             return None, str(e)
+
+    async def api_key_update_is_superkey(
+        self,
+        api_key: str,
+        new_is_superkey: bool = False
+    ) -> tuple[bool | None, str | None]:
+        """
+        Updates the :code:`is_superkey` column for the given API key in the database.
+
+        :param api_key: The API key whose data needs to be updated.
+        :param new_is_superkey: Note: Superkey can CRUD (based on superkey's *permissions*) other API keys.
+        :return: On success will return :code:`True` if column have been changed, otherwise :code:`False` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        try:
+            async with self.conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    UPDATE api_keys
+                    SET is_superkey = %s
+                    WHERE api_key = %s AND is_superkey != %s
+                    """,
+                    (new_is_superkey, api_key, new_is_superkey)
+                )
+
+                if cur.rowcount == 0:
+                    return False, None
+
+                await self.conn.commit()
+                return True, None
         except Exception as e:
-            print(f"[{self.tsr}] database {self.name}: api_key_update(): Unexpected error: {e}")
+            print(f"[{self.tsr}] database {self.name}: api_key_update_is_superkey(): Unexpected error: {e}")
+            await self.conn.rollback()
+            return None, str(e)
+
+    async def api_key_update_owner_id(
+        self,
+        api_key: str,
+        new_owner_id: int | None = None
+    ) -> tuple[bool | None, str | None]:
+        """
+        Updates the :code:`owner_id` column for the given API key in the database.
+
+        :param api_key: The API key whose data needs to be updated.
+        :param new_owner_id: Note: Telegram ID of the API key's owner. Optional in DB.
+        :return: On success will return :code:`True` if column have been changed, otherwise :code:`False` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        try:
+            async with self.conn.cursor() as cur:
+                if new_owner_id is not None:
+                    await cur.execute(
+                        """
+                        SELECT 1 FROM users WHERE id = %s
+                        """,
+                        (new_owner_id,)
+                    )
+                    if await cur.fetchone() is None:
+                        e: str = f"Database '{self.name}' error. User with the specified new_owner_id doesn't exist"
+                        print(f"[{self.tsr}] database {self.name}: api_key_update_owner_id(): Error: {e}")
+                        await self.conn.rollback()
+                        return None, e
+
+                await cur.execute(
+                    """
+                    UPDATE api_keys
+                    SET owner_id = %s
+                    WHERE api_key = %s AND owner_id IS DISTINCT FROM %s
+                    """,
+                    (new_owner_id, api_key, new_owner_id)
+                )
+
+                if cur.rowcount == 0:
+                    return False, None
+
+                await self.conn.commit()
+                return True, None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: api_key_update_owner_id(): Unexpected error: {e}")
             await self.conn.rollback()
             return None, str(e)
 
@@ -161,11 +259,18 @@ class DbQuery:
         self,
         api_key: str
     ) -> tuple[bool | None, str | None]:
+        """
+        Deletes the given API key from the database.
+
+        :param api_key: The API key that needs to be deleted.
+        :return: On success will return :code:`True` if column have been changed, otherwise :code:`False` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
         try:
             async with self.conn.cursor() as cur:
                 await cur.execute(
                     """
-                    DELETE FROM api_keys WHERE api_key = %s
+                    DELETE FROM api_keys
+                    WHERE api_key = %s
                     """,
                     (api_key,)
                 )
