@@ -339,7 +339,7 @@ class DbQuery:
                 for column, value in data.items():
                     params.append(value)
                     if column == "id": continue
-                    elif column == "zoneinfo": columns.append(sql.SQL("zoneinfo = COALESCE(EXCLUDED.zoneinfo, users.zoneinfo)"))
+                    elif column == "zoneinfo": columns.append(sql.SQL(f"{column} = COALESCE(EXCLUDED.{column}, users.{column})"))
                     else:
                         columns.append(sql.SQL("{excldd} = EXCLUDED.{excldd}").format(
                             excldd=sql.Identifier(column)
@@ -379,9 +379,9 @@ class DbQuery:
         user_id_or_username: int | str
     ) -> tuple[User | None, str | None]:
         """
-        Reads the given user in the database by his id.
+        Reads the given user in the database by his id or username.
 
-        :param user_id: The user's ID or username whose data needs to be obtained.
+        :param user_id_or_username: The user's ID or username whose data needs to be obtained.
         :return: On success will return :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
         """
         user_id_or_username = str(user_id_or_username)
@@ -429,8 +429,8 @@ class DbQuery:
         :param **columns_for_search: Search parameters.
         :return: On success will return list of :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
         """
-        columns = []
-        params = []
+        columns: list[sql.SQL[str]] = []
+        params: list[sql.SQL[str]] = []
         for column, value in columns_for_search.items():
             if not allow_None_values and value is None:
                 continue
@@ -455,7 +455,7 @@ class DbQuery:
                 )
                 users: list[dict[str, Any]] = await cur.fetchall()
                 if users is None:
-                    e: str = f"Database '{self.name}' error. No one was found"
+                    e: str = f"Database '{self.name}' error. No users was found by given params"
                     print(f"[{self.tsr}] database {self.name}: user_readall(): Error: {e}")
                     return None, e
                 users_classes: list[User] = []
@@ -495,6 +495,217 @@ class DbQuery:
                 await self.conn.commit()
                 return True, None
         except Exception as e:
-            print(f"[{self.tsr}] database {self.name}: delete_delete(): Unexpected error: {e}")
+            print(f"[{self.tsr}] database {self.name}: user_delete(): Unexpected error: {e}")
+            await self.conn.rollback()
+            return None, str(e)
+
+    #####################
+    #                   #
+    #   Table "chats"   #
+    #                   #
+    #####################
+
+    async def chat_create(
+        self,
+        id: int,
+        type: str,
+        title: str | None = None,
+        username: str | None = None,
+        first_name: str | None = None,
+        last_name: str | None = None,
+        is_forum: bool | None = None,
+        is_direct_messages: bool | None = None,
+        language_code: str | None = None,
+        owner_id: int | None = None,
+        zoneinfo: str | None = None,
+    ) -> tuple[Chat | None, str | None]:
+        """
+        Creates chat in the database.
+
+        Source: https://docs.aiogram.dev/en/v3.28.2/api/types/chat.html
+
+        :param language_code: Telegram language code for whole chat. Optional in DB.
+        :param owner_id: User Telegram ID of chat's owner. Optional in DB.
+        :param zoneinfo: The string that will be used to fill ZoneInfo (Source: https://docs.python.org/3/library/zoneinfo.html#the-zoneinfo-class). Optional in DB.
+        :return: On success will return :class:`aiogram.types.chat.Chat` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        data = locals().copy(); data.pop("self")
+
+        try:
+            async with self.conn.cursor() as cur:
+                if username:
+                    await cur.execute(
+                        """
+                        UPDATE chat
+                        SET username = NULL
+                        WHERE username = %s and id != %s
+                        """,
+                        (username.casefold(), id)
+                    )
+
+                columns: list[sql.SQL[str]] = []
+                params: list[sql.SQL[str]] = []
+                for column, value in data.items():
+                    params.append(value)
+                    if column == "id": continue
+                    elif column == "zoneinfo": columns.append(sql.SQL(f"{column} = COALESCE(EXCLUDED.{column}, chats.{column})"))
+                    elif column == "language_code": columns.append(sql.SQL(f"{column} = COALESCE(EXCLUDED.{column}, chats.{column})"))
+                    elif column == "owner_id": columns.append(sql.SQL(f"{column} = COALESCE(EXCLUDED.{column}, chats.{column})"))
+                    else:
+                        columns.append(sql.SQL("{excldd} = EXCLUDED.{excldd}").format(
+                            excldd=sql.Identifier(column)
+                        ))
+
+                await cur.execute(
+                    sql.SQL(
+                        """
+                        INSERT INTO chats ({})
+                        VALUES ({})
+                        ON CONFLICT (id) DO UPDATE SET
+                            {}
+                        RETURNING *
+                        """,
+                    ).format(
+                        sql.SQL(", ").join(map(sql.Identifier, data.keys())), # Used AI for help in this line
+                        sql.SQL(", ").join([sql.Placeholder() for _ in params]),
+                        sql.SQL(", ").join(columns)
+                    ),
+                    params
+                )
+                new_chat: dict[str, Any] = await cur.fetchone()
+                if new_chat is None:
+                    e: str = "Unexpected error. Chat wasn't created. Report this message"
+                    print(f"[{self.tsr}] database {self.name}: chat_create(): Unexpected error: {e}")
+                    await self.conn.rollback()
+                    return None, e
+                await self.conn.commit()
+                return Chat(**new_chat), None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: chat_create(): Unexpected error: {e}")
+            await self.conn.rollback()
+            return None, str(e)
+
+    async def chat_read(
+        self,
+        chat_id_or_username: int | str
+    ) -> tuple[Chat | None, str | None]:
+        """
+        Reads the given chat in the database by his id or username.
+
+        :param chat_id_or_username: The chat's ID or username whose data needs to be obtained.
+        :return: On success will return :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        chat_id_or_username = str(chat_id_or_username)
+
+        try:
+            async with self.conn.cursor() as cur:
+                if chat_id_or_username.isdigit():
+                    await cur.execute(
+                        """
+                        SELECT *
+                        FROM chats
+                        WHERE id = %s
+                        """,
+                        (int(chat_id_or_username),)
+                    )
+                else:
+                    await cur.execute(
+                        """
+                        SELECT *
+                        FROM chats
+                        WHERE username = %s
+                        """,
+                        (chat_id_or_username.casefold(),)
+                    )
+
+                chat: dict[str, Any] = await cur.fetchone()
+                if chat is None:
+                    e: str = f"Database '{self.name}' error. Specified chat doesn't exist"
+                    print(f"[{self.tsr}] database {self.name}: chat_read(): Error: {e}")
+                    return None, e
+                return Chat(**chat), None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: chat_read(): Unexpected error: {e}")
+            return None, str(e)
+
+    async def chat_readall(
+        self,
+        allow_None_values: bool = False,
+        **columns_for_search
+    ) -> tuple[list[User] | None, str | None]:
+        """
+        Searches for chats by given params.
+
+        :param allow_None_values: If :code:`True`, then the search will be performed even on None values (for examle, if you need chats without a username). Otherwise, None params will be skipped.
+        :param **columns_for_search: Search parameters.
+        :return: On success will return list of :class:`aiogram.types.chat.Chat` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        columns: list[sql.SQL[str]] = []
+        params: list[sql.SQL[str]] = []
+        for column, value in columns_for_search.items():
+            if not allow_None_values and value is None:
+                continue
+            params.append(value)
+            columns.append(sql.SQL("{} = %s").format(
+                sql.Identifier(column)
+            ))
+
+        try:
+            async with self.conn.cursor() as cur:
+                await cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT *
+                        FROM chats
+                        WHERE {}
+                        """
+                    ).format(
+                        sql.SQL(" AND ").join(columns)
+                    ),
+                    params
+                )
+                chats: list[dict[str, Any]] = await cur.fetchall()
+                if chats is None:
+                    e: str = f"Database '{self.name}' error. No chats was found by gived params"
+                    print(f"[{self.tsr}] database {self.name}: chat_readall(): Error: {e}")
+                    return None, e
+                chats_classes: list[Chat] = []
+                for chat in chats:
+                    chats_classes.append(Chat(**chat))
+                return chats_classes, None
+        except UndefinedColumn as e:
+            print(f"[{self.tsr}] database {self.name}: chat_readall(): UndefinedColumn error: {e}")
+            return None, str(e)
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: chat_readall(): Unexcepted error: {e}")
+            return None, str(e)
+
+    async def chat_delete(
+        self,
+        chat_id: int
+    ) -> tuple[bool | None, str | None]:
+        """
+        Deletes the given chat from the database.
+
+        :param chat_id: The chat that needs to be deleted.
+        :return: On success will return :code:`True` if column have been changed, otherwise :code:`False` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        try:
+            async with self.conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    DELETE FROM chat
+                    WHERE id = %s
+                    """,
+                    (chat_id,)
+                )
+
+                if cur.rowcount == 0:
+                    return False, None    
+
+                await self.conn.commit()
+                return True, None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: chat_delete(): Unexpected error: {e}")
             await self.conn.rollback()
             return None, str(e)
