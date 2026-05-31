@@ -1,9 +1,10 @@
-from psycopg import AsyncConnection#, sql
+from psycopg import AsyncConnection, sql
 from psycopg.rows import dict_row
-#from psycopg.errors import UndefinedColumn
+from psycopg.errors import UndefinedColumn
 
 from aiogram.types import User, Chat
 
+from typing import Any
 from string import ascii_letters, digits
 from secrets import choice
 
@@ -286,7 +287,9 @@ class DbQuery:
             return None, str(e)
 
     #####################
+    #                   #
     #   Table "users"   #
+    #                   #
     #####################
 
     async def user_create(
@@ -296,48 +299,202 @@ class DbQuery:
         last_name: str | None = None,
         username: str | None = None,
         language_code: str | None = None,
-        is_premium: bool | None = None
+        is_premium: bool | None = None,
+        added_to_attachment_menu: bool | None = None,
+        can_join_groups: bool | None = None,
+        can_read_all_group_messages: bool | None = None,
+        supports_guest_queries: bool | None = None,
+        supports_inline_queries: bool | None = None,
+        can_connect_to_business: bool | None = None,
+        has_main_web_app: bool | None = None,
+        has_topics_enabled: bool | None = None,
+        allows_users_to_create_topics: bool | None = None,
+        can_manage_bots: bool | None = None,
+        zoneinfo: str | None = None,
     ) -> tuple[User | None, str | None]:
+        """
+        Creates user in the database.
+
+        Source: https://docs.aiogram.dev/en/v3.28.2/api/types/user.html
+
+        :param zoneinfo: The string that will be used to fill ZoneInfo (Source: https://docs.python.org/3/library/zoneinfo.html#the-zoneinfo-class). Optional in DB.
+        :return: On success will return :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        data = locals().copy(); data.pop("self")
+
         try:
             async with self.conn.cursor() as cur:
-                await cur.execute(
-                    """
-                    SELECT 1 FROM users WHERE username = %s
-                    """,
-                    (username,)
-                )
-                if cur.fetchone():
+                if username:
                     await cur.execute(
                         """
-                        UPDATE users SET username = NULL WHERE username = %s AND id != %s
+                        UPDATE users
+                        SET username = NULL
+                        WHERE username = %s and id != %s
                         """,
-                        (username, id)
+                        (username.casefold(), id)
                     )
 
+                columns: list = []
+                params: list = []
+                for column, value in data.items():
+                    params.append(value)
+                    if column == "id": continue
+                    elif column == "zoneinfo": columns.append(sql.SQL("zoneinfo = COALESCE(EXCLUDED.zoneinfo, users.zoneinfo)"))
+                    else:
+                        columns.append(sql.SQL("{excldd} = EXCLUDED.{excldd}").format(
+                            excldd=sql.Identifier(column)
+                        ))
+
                 await cur.execute(
-                    """
-                    INSERT INTO users (id, first_name, last_name, username, language_code, is_premium)
-                    VALUES (%s, %s, %s, %s, %s, %s)
-                    ON CONFLICT (id) DO UPDATE SET
-                        first_name = EXCLUDED.first_name,
-                        last_name = EXCLUDED.last_name,
-                        username = EXCLUDED.username,
-                        language_code = EXCLUDED.language_code,
-                        is_premium = EXCLUDED.is_premium,
-                        zoneinfo = COALESCE(EXCLUDED.zoneinfo, users.zoneinfo)
-                    RETURNING *
-                    """,
-                    (id, first_name, last_name, username, language_code, is_premium)
+                    sql.SQL(
+                        """
+                        INSERT INTO users ({})
+                        VALUES ({})
+                        ON CONFLICT (id) DO UPDATE SET
+                            {}
+                        RETURNING *
+                        """,
+                    ).format(
+                        sql.SQL(", ").join(map(sql.Identifier, data.keys())), # Used AI for help in this line
+                        sql.SQL(", ").join([sql.Placeholder() for _ in params]),
+                        sql.SQL(", ").join(columns)
+                    ),
+                    params
                 )
-                new_user: dict = await cur.fetchone()
+                new_user: dict[str, Any] = await cur.fetchone()
                 if new_user is None:
-                    e: str = "Unexpecter error. User wasn't created. Report this message"
-                    print(f"[{self.tsr}] database {self.name}: user_create(): Error: {e}")
+                    e: str = "Unexpected error. User wasn't created. Report this message"
+                    print(f"[{self.tsr}] database {self.name}: user_create(): Unexpected error: {e}")
                     await self.conn.rollback()
                     return None, e
                 await self.conn.commit()
                 return User(**new_user), None
         except Exception as e:
-            print(f"[{self.tsr}] database {self.name}: user_create(): Error: {e}")
+            print(f"[{self.tsr}] database {self.name}: user_create(): Unexpected error: {e}")
+            await self.conn.rollback()
+            return None, str(e)
+
+    async def user_read(
+        self,
+        user_id_or_username: int | str
+    ) -> tuple[User | None, str | None]:
+        """
+        Reads the given user in the database by his id.
+
+        :param user_id: The user's ID or username whose data needs to be obtained.
+        :return: On success will return :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        user_id_or_username = str(user_id_or_username)
+
+        try:
+            async with self.conn.cursor() as cur:
+                if user_id_or_username.isdigit():
+                    await cur.execute(
+                        """
+                        SELECT *
+                        FROM users
+                        WHERE id = %s
+                        """,
+                        (int(user_id_or_username),)
+                    )
+                else:
+                    await cur.execute(
+                        """
+                        SELECT *
+                        FROM users
+                        WHERE username = %s
+                        """,
+                        (user_id_or_username.casefold(),)
+                    )
+
+                user: dict[str, Any] = await cur.fetchone()
+                if user is None:
+                    e: str = f"Database '{self.name}' error. Specified user doesn't exist"
+                    print(f"[{self.tsr}] database {self.name}: user_read(): Error: {e}")
+                    return None, e
+                return User(**user), None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: user_read(): Unexpected error: {e}")
+            return None, str(e)
+
+    async def user_readall(
+        self,
+        allow_None_values: bool = False,
+        **columns_for_search
+    ) -> tuple[list[User] | None, str | None]:
+        """
+        Searches for users by given params.
+
+        :param allow_None_values: If :code:`True`, then the search will be performed even on None values (for examle, if you need users without a username). Otherwise, None params will be skipped.
+        :param **columns_for_search: Search parameters.
+        :return: On success will return list of :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        columns = []
+        params = []
+        for column, value in columns_for_search.items():
+            if not allow_None_values and value is None:
+                continue
+            params.append(value)
+            columns.append(sql.SQL("{} = %s").format(
+                sql.Identifier(column)
+            ))
+
+        try:
+            async with self.conn.cursor() as cur:
+                await cur.execute(
+                    sql.SQL(
+                        """
+                        SELECT *
+                        FROM users
+                        WHERE {}
+                        """
+                    ).format(
+                        sql.SQL(" AND ").join(columns)
+                    ),
+                    params
+                )
+                users: list[dict[str, Any]] = await cur.fetchall()
+                if users is None:
+                    e: str = f"Database '{self.name}' error. No one was found"
+                    print(f"[{self.tsr}] database {self.name}: user_readall(): Error: {e}")
+                    return None, e
+                users_classes: list[User] = []
+                for user in users:
+                    users_classes.append(User(**user))
+                return users_classes, None
+        except UndefinedColumn as e:
+            print(f"[{self.tsr}] database {self.name}: user_readall(): UndefinedColumn error: {e}")
+            return None, str(e)
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: user_readall(): Unexcepted error: {e}")
+            return None, str(e)
+
+    async def user_delete(
+        self,
+        user_id: int
+    ) -> tuple[bool | None, str | None]:
+        """
+        Deletes the given user from the database.
+
+        :param user_id: The user that needs to be deleted.
+        :return: On success will return :code:`True` if column have been changed, otherwise :code:`False` & :code:`None` as error. Otherwise, :code:`None` & text of error: :code:`str`.
+        """
+        try:
+            async with self.conn.cursor() as cur:
+                await cur.execute(
+                    """
+                    DELETE FROM users
+                    WHERE id = %s
+                    """,
+                    (user_id,)
+                )
+
+                if cur.rowcount == 0:
+                    return False, None    
+
+                await self.conn.commit()
+                return True, None
+        except Exception as e:
+            print(f"[{self.tsr}] database {self.name}: delete_delete(): Unexpected error: {e}")
             await self.conn.rollback()
             return None, str(e)
