@@ -7,21 +7,23 @@ from ..database import db
 def check_api_key(
     api_key: str
 ) -> str | None:
+    """Checks the validity of the API key field."""
     if not api_key:
         return "Method error. The API key field is empty"
     if len(api_key) != API_KEY_LEN:
-        return f"Method error. API key is need to be {API_KEY_LEN} letters length"
+        return f"Method error. API key can be only {API_KEY_LEN} letters length"
     return None
 
 def check_permissions(
     permissions: str
 ) -> str | None:
+    """Checks the validity of the pemissions field."""
     if not permissions:
         return "Method error. The permissions field is empty"
     if len(permissions) > PERMISSIONS_MAX_LEN:
-        return "Method error. The permissions field should be maximum 4 letter length"
+        return f"Method error. The permissions field can be maximum {PERMISSIONS_MAX_LEN} letters length"
     if not set(permissions).issubset(set('crud')):
-        return "Method error. The permissions field should only contain the letters c, r, u and d"
+        return "Method error. The permissions field can only contain the letters c, r, u and d"
     return None
 
 
@@ -46,9 +48,10 @@ async def activate_api_key(
     if is_superkey is None:
         is_superkey = False
 
-    _, err = await db.user_read(owner_id)
-    if err:
-        return {"error": err}
+    if owner_id:
+        _, err = await db.user_read(owner_id)
+        if err:
+            return {"error": err}
 
     new_api_key, err = await db.api_key_create(
         permissions=permissions,
@@ -107,9 +110,10 @@ async def change_api_key_owner(
     if err:
         return {"error": err}
 
-    _, err = await db.user_read(new_owner_id)
-    if err:
-        return {"error": err}
+    if new_owner_id:
+        _, err = await db.user_read(new_owner_id)
+        if err:
+            return {"error": err}
 
     res, err = await db.api_key_update_owner_id(
         api_key,
@@ -127,6 +131,11 @@ async def superkey(
     """
     
     """
+    api_key = api_key.strip()
+    err = check_api_key(api_key)
+    if err:
+        return {"error": err}
+
     res, err = await db.api_key_update_is_superkey(
         api_key,
         True
@@ -143,6 +152,11 @@ async def unsuperkey(
     """
     
     """
+    api_key = api_key.strip()
+    err = check_api_key(api_key)
+    if err:
+        return {"error": err}
+
     res, err = await db.api_key_update_is_superkey(api_key)
     if err:
         return {"error": err}
@@ -153,6 +167,11 @@ async def unsuperkey(
 async def deactivate_api_key(
     api_key: str
 ) -> dict[str, str | Literal[True]]:
+    api_key = api_key.strip()
+    err = check_api_key(api_key)
+    if err:
+        return {"error": err}
+
     res, err = await db.api_key_delete(api_key)
     if err:
         return {"error": err}
