@@ -6,7 +6,12 @@ from .api_keys import (
 from .users import (
     record_user, unrecord_user,
     get_user,
-    update_language_code, update_timezone
+    update_language_code, update_timezone # TODO Rename update_timezone() function to "update_zoneinfo"
+)
+from .chats import (
+    record_chat, unrecord_chat,
+    get_chat,
+    update_chat_language_code, update_chat_zoneinfo
 )
 
 
@@ -17,7 +22,7 @@ def check_names(
 ) -> str | None:
     """Checks the validity of the first name, last name and username fields."""
     from ..config import NAMES_MAX_LEN, USERNAME_MAX_LEN
-    data = locals().copy(); data.pop("username")
+    data: dict[str, str] = locals().copy(); data.pop("username")
 
     for var in data:
         if var is not None and not var:
@@ -51,5 +56,8 @@ __all__ = [
     "superkey", "unsuperkey",
     "record_user", "unrecord_user",
     "get_user",
-    "update_language_code", "update_timezone"
+    "update_language_code", "update_timezone",
+    "record_chat", "unrecord_chat",
+    "get_chat",
+    "update_chat_language_code", "update_chat_zoneinfo"
 ]
