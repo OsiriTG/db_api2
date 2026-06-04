@@ -62,14 +62,21 @@ async def activate_api_key(
         return {"error": err}
     return dict(vars(new_api_key))
 
-#async def api_key_get(
-#    self,
-#    api_key: str
-#) -> dict[str, Any]:
-#
-# I think the "read api key" func is a security breach.
-# I won't be creating it for a public or even private API, so at this point i don't need this function.
-#
+async def api_key_get(
+   api_key: str
+) -> dict[str, Any]:
+    """
+    
+    """
+    api_key = api_key.strip()
+    err = check_api_key(api_key)
+    if err:
+        return {"error": err}
+
+    api_key, err = await db.api_key_read(api_key)
+    if err:
+        return {"error": err}
+    return dict(vars(api_key))
 
 async def change_api_key_permissions(
     api_key: str,
