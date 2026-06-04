@@ -1,5 +1,12 @@
-from dotenv import load_dotenv; load_dotenv()
+from string import ascii_letters, digits
+
+base64 = ascii_letters + digits + "_" + "-"
+
+
+from dotenv import load_dotenv
 from os import getenv
+
+load_dotenv()
 
 DB_HOST: str = getenv("DB_HOST", "localhost")
 DB_DBNAME: str = getenv("DB_DBNAME", "postgres")
