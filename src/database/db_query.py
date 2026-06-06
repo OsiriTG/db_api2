@@ -50,7 +50,7 @@ class DbQuery:
         permissions: str = 'r',
         is_superkey: bool = False,
         owner_id: int | None = None
-    ) -> tuple[ApiKey | None, dict | None]:
+    ) -> tuple[ApiKey | None, dict[str, str | int] | None]:
         """
         Creates API key in the database.
 
@@ -109,7 +109,7 @@ class DbQuery:
     async def api_key_read(
         self,
         api_key: str
-    ) -> tuple[ApiKey | None, str | None]:
+    ) -> tuple[ApiKey | None, dict[str, str | int] | None]:
         """
         Reads the given API key in the database.
 
@@ -133,7 +133,7 @@ class DbQuery:
         self,
         api_key: str,
         new_permissions: str = 'r'
-    ) -> tuple[bool | None, str | None]:
+    ) -> tuple[bool | None, dict[str, str | int] | None]:
         """
         Updates the :code:`permissions` column for the given API key in the database.
 
@@ -165,7 +165,7 @@ class DbQuery:
         self,
         api_key: str,
         new_is_superkey: bool = False
-    ) -> tuple[bool | None, str | None]:
+    ) -> tuple[bool | None, dict[str, str | int] | None]:
         """
         Updates the :code:`is_superkey` column for the given API key in the database.
 
@@ -197,7 +197,7 @@ class DbQuery:
         self,
         api_key: str,
         new_owner_id: int | None = None
-    ) -> tuple[bool | None, str | None]:
+    ) -> tuple[bool | None, dict[str, str | int] | None]:
         """
         Updates the :code:`owner_id` column for the given API key in the database.
 
@@ -239,7 +239,7 @@ class DbQuery:
     async def api_key_delete(
         self,
         api_key: str
-    ) -> tuple[bool | None, str | None]:
+    ) -> tuple[bool | None, dict[str, str | int] | None]:
         """
         Deletes the given API key from the database.
 
@@ -290,7 +290,7 @@ class DbQuery:
         allows_users_to_create_topics: bool | None = None,
         can_manage_bots: bool | None = None,
         zoneinfo: str | None = None,
-    ) -> tuple[User | None, str | None]:
+    ) -> tuple[User | None, dict[str, str | int] | None]:
         """
         Creates user in the database.
 
@@ -350,7 +350,7 @@ class DbQuery:
     async def user_read(
         self,
         id_or_username: int | str
-    ) -> tuple[User | None, str | None]:
+    ) -> tuple[User | None, dict[str, str | int] | None]:
         """
         Reads the given user in the database by his id or username.
 
@@ -389,7 +389,7 @@ class DbQuery:
         self,
         allow_None_values: bool = False,
         **columns_for_search
-    ) -> tuple[list[User] | None, str | None]:
+    ) -> tuple[list[User] | None, dict[str, str | int] | None]:
         """
         Searches for users by given params.
 
@@ -434,7 +434,7 @@ class DbQuery:
     async def user_delete(
         self,
         user_id: int
-    ) -> tuple[bool | None, str | None]:
+    ) -> tuple[bool | None, dict[str, str | int] | None]:
         """
         Deletes the given user from the database.
 
@@ -466,7 +466,7 @@ class DbQuery:
     #                   #
     #####################
 
-    async def chat_create(
+    async def chat_create_update(
         self,
         id: int,
         type: str,
@@ -479,7 +479,7 @@ class DbQuery:
         language_code: str | None = None,
         owner_id: int | None = None,
         zoneinfo: str | None = None,
-    ) -> tuple[Chat | None, str | None]:
+    ) -> tuple[Chat | None, dict[str, str | int] | None]:
         """
         Creates chat in the database.
 
@@ -543,7 +543,7 @@ class DbQuery:
     async def chat_read(
         self,
         id_or_username: int | str
-    ) -> tuple[Chat | None, str | None]:
+    ) -> tuple[Chat | None, dict[str, str | int] | None]:
         """
         Reads the given chat in the database by his id or username.
 
@@ -582,7 +582,7 @@ class DbQuery:
         self,
         allow_None_values: bool = False,
         **columns_for_search
-    ) -> tuple[list[User] | None, str | None]:
+    ) -> tuple[list[User] | None, dict[str, str | int] | None]:
         """
         Searches for chats by given params.
 
@@ -627,7 +627,7 @@ class DbQuery:
     async def chat_delete(
         self,
         chat_id: int
-    ) -> tuple[bool | None, str | None]:
+    ) -> tuple[bool | None, dict[str, str | int] | None]:
         """
         Deletes the given chat from the database.
 
