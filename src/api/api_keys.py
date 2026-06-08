@@ -9,7 +9,7 @@ from ..methods import (
     get_api_key,
     change_api_key_permissions, change_api_key_owner
 )
-from ..types import ApiKey
+from ..custom_types import ApiKey
 
 router = APIRouter(prefix="api_keys")
 

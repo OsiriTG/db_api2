@@ -8,7 +8,7 @@ from typing import Any
 from secrets import choice
 
 from ..config import DB_HOST, DB_DBNAME, DB_PORT, DB_USER, DB_PASSWORD, API_KEY_LEN, base64
-from ..types import ApiKey
+from ..custom_types import ApiKey
 from ..utils import http_error
 
 class DbQuery:
