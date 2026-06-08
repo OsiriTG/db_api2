@@ -68,6 +68,6 @@ CREATE TABLE api_keys (
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_chats_username ON chats(username);
 CREATE INDEX idx_chats_owner_id ON chats(owner_id);
-CREATE INDEX idx_api_keys_owner_id ON api_key(owner_id);
+CREATE INDEX idx_api_keys_owner_id ON api_keys(owner_id);
 
 COMMIT;
