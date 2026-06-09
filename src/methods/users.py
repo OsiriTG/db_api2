@@ -3,7 +3,7 @@ from typing import Any
 from datetime import datetime
 
 from ..database import db
-from ..utils import http_error, check_names, check_language_code
+from ..utils import http_error, check_names, check_username, check_language_code
 
 async def record_user(
     id: int,
@@ -39,7 +39,7 @@ async def record_user(
 
     data['first_name'] = first_name.strip()
     if last_name: data['last_name'] = last_name.strip()
-    if username: data['username'] = username.strip()
+    if username: data['username'] = username.strip().strip("@")
     err = check_names(data['first_name'], data['last_name'], data['username'])
     if err:
         return err
@@ -64,8 +64,13 @@ async def get_user(
     :param id_or_username: The user's ID or username whose data needs to be obtained.
     :return: On success will return dict of :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
-    if str(id_or_username).isdigit() and str(id_or_username).startswith("-100"):
-        return {"error": "Method error. User ID cannot start with '-100'"}
+    if str(id_or_username).isdigit() and str(id_or_username).strip().startswith("-100"):
+        return http_error(400, "User ID cannot start with '-100'", "id", "invalid_id_format")
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
 
     user, err = await db.user_read(id_or_username)
     if err:
@@ -83,6 +88,14 @@ async def change_language_code(
     :param new_language_code: New value of language code.
     :return: On success will return dict of :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
+    if str(id_or_username).isdigit() and str(id_or_username).strip().startswith("-100"):
+        return http_error(400, "User ID cannot start with '-100'", "id", "invalid_id_format")
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
+
     new_language_code = new_language_code.strip()
     err = check_language_code(new_language_code)
     if err:
@@ -110,6 +123,14 @@ async def change_zoneinfo(
     :param new_zoneinfo: New value of zoneinfo (Source: https://docs.python.org/3/library/zoneinfo.html#the-zoneinfo-class).
     :return: On success will return dict of :class:`aiogram.types.user.User` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
+    if str(id_or_username).isdigit() and str(id_or_username).strip().startswith("-100"):
+        return http_error(400, "User ID cannot start with '-100'", "id", "invalid_id_format")
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
+
     new_zoneinfo = new_zoneinfo.strip()
     if not new_zoneinfo:
         return http_error(400, "The zoneinfo field is empty", "zoneinfo", "missing_required_field")
@@ -134,8 +155,13 @@ async def unrecord_user(
     :param id_or_username: The user's ID or username whose data needs to be deleted.
     :return: On success will return :code:`True` or if rowcount is stil 0 - :code:`False` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
-    if str(id_or_username).isdigit() and str(id_or_username).startswith("-100"):
+    if str(id_or_username).isdigit() and str(id_or_username).strip().startswith("-100"):
         return http_error(400, "User ID cannot start with '-100'", "id", "invalid_id_format")
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
 
     res, err = await db.user_delete(id_or_username)
     if err:

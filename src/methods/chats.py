@@ -4,7 +4,7 @@ from datetime import datetime
 
 from ..config import TYPE_STATES, TITLE_MAX_LEN
 from ..database import db
-from ..utils import http_error, check_names, check_language_code
+from ..utils import http_error, check_names, check_username, check_language_code
 
 async def record_chat(
     id: int,
@@ -44,7 +44,7 @@ async def record_chat(
 
     data['first_name'] = first_name.strip()
     if last_name: data['last_name'] = last_name.strip()
-    if username: data['username'] = username.strip()
+    if username: data['username'] = username.strip().strip("@")
     err = check_names(data['first_name'], data['last_name'], data['username'])
     if err:
         return err
@@ -79,6 +79,12 @@ async def get_chat(
     :param id_or_username: The chat's ID or username whose data needs to be obtained.
     :return: On success will return dict of :class:`aiogram.types.chat.Chat` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
+
     chat, err = await db.chat_read(id_or_username)
     if err:
         return err
@@ -95,6 +101,12 @@ async def change_chat_language_code(
     :param new_language_code: New value of language code.
     :return: On success will return dict of :class:`aiogram.types.chat.Chat` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
+
     new_language_code = new_language_code.strip()
     err = check_language_code(new_language_code)
     if err:
@@ -122,6 +134,12 @@ async def change_chat_zoneinfo(
     :param new_zoneinfo: New value of zoneinfo (Source: https://docs.python.org/3/library/zoneinfo.html#the-zoneinfo-class).
     :return: On success will return dict of :class:`aiogram.types.chat.Chat` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
+
     new_zoneinfo = new_zoneinfo.strip()
     if not new_zoneinfo:
         return http_error(400, "The zoneinfo field is empty", "zoneinfo", "missing_required_field")
@@ -146,6 +164,12 @@ async def unrecord_chat(
     :param id_or_username: The chat's ID or username whose data needs to be deleted.
     :return: On success will return :code:`True` or if rowcount is stil 0 - :code:`False` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
+    if str(id_or_username).strip().startswith("@"):
+        id_or_username = id_or_username.strip().strip("@")
+        err = check_username(id_or_username)
+        if err:
+            return err
+
     res, err = await db.chat_delete(id_or_username)
     if err:
         return err

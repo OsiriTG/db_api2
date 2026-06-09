@@ -49,6 +49,15 @@ def check_names(
 
     return None
 
+def check_username(
+    username: str
+) -> dict[str, str | int] | None:
+    """Checks the validity of the username field."""
+    if not username:
+        return http_error(400, "The username field is empty", "username", "missing_field")
+    if len(username) > USERNAME_MAX_LEN:
+        return http_error(400, f"The username field can be a maximum of {USERNAME_MAX_LEN} letters in length", "username", "username_too_long")
+
 def check_language_code(
     language_code: str
 ) -> dict[str, str | int] | None:
