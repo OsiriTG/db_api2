@@ -11,7 +11,7 @@ from ..methods import (
 )
 from ..custom_types import ApiKey
 
-router = APIRouter(prefix="api_keys")
+router = APIRouter(prefix="/api_keys")
 
 
 class Activate(BaseModel):
@@ -27,13 +27,13 @@ class ChangeOwner(BaseModel):
     new_owner_id: Optional[int] = Field(None, max_length=PERMISSIONS_MAX_LEN)
 
 
-@router.post("/api_keys/activate")
+@router.post("/activate")
 async def api_keys_activate(
     request: Activate,
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
-    
+    Activates the API key.
     """
     your_api_key = await get_api_key(api_key)
     if "error" in your_api_key:
@@ -42,6 +42,8 @@ async def api_keys_activate(
 
     if not your_api_key.is_superkey:
         raise HTTPException(403, "Not enough rights (is_superkey)")
+    if not "c" in your_api_key.permissions:
+        return HTTPException(403, "Not enough rights (c)")
     missing_permissions: list[str] = [p.lower() for p in request.permissions if p not in your_api_key.permissions]
     if missing_permissions:
         return HTTPException(403, f"Not enough rights ({', '.join(missing_permissions)})")
@@ -51,13 +53,13 @@ async def api_keys_activate(
         raise HTTPException(new_api_key['error']['code'], new_api_key)
     return new_api_key
 
-@router.post("/api_keys/deactivate")
+@router.post("/deactivate")
 async def api_keys_deactivate(
     target_api_key: str = Header(..., alias="target_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN),
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
-    
+    Deactivates the API key.
     """
     your_api_key = await get_api_key(api_key)
     if "error" in your_api_key:
@@ -74,13 +76,13 @@ async def api_keys_deactivate(
         raise HTTPException(res['error']['code'], res)
     return res
 
-@router.get("/api_keys/get")
+@router.get("/get")
 async def api_keys_get(
     target_api_key: str = Header(..., alias="target_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN),
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
-    
+    Reads for the given API key.
     """
     your_api_key = await get_api_key(api_key)
     if "error" in your_api_key:
@@ -97,13 +99,13 @@ async def api_keys_get(
         raise HTTPException(t_api_key['error']['code'], t_api_key)
     return t_api_key
 
-@router.post("/api_keys/change/permissions")
+@router.post("/change/permissions")
 async def api_keys_change_permissions(
     request = ChangePermissions,    
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
-    
+    Changes permissions for given API key.
     """
     your_api_key = await get_api_key(api_key)
     if "error" in your_api_key:
@@ -120,13 +122,13 @@ async def api_keys_change_permissions(
         raise HTTPException(res['error']['code'], res)
     return res
 
-@router.post("/api_keys/change/owner")
+@router.post("/change/owner")
 async def api_keys_change_owner(
     request = ChangeOwner,    
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
-    
+    Changes owner telegram user ID for given API key.
     """
     your_api_key = await get_api_key(api_key)
     if "error" in your_api_key:
