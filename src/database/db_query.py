@@ -94,6 +94,9 @@ class DbQuery:
                     (api_key, permissions.lower(), is_superkey, owner_id)
                 )
                 new_api_key: dict[str, Any] = await cur.fetchone()
+                if new_api_key is None:
+                    await self.conn.rollback()
+                    return None, http_error(400, "Failed to create API key", None, "failed_create_api_key")
                 await self.conn.commit()
                 return ApiKey(**new_api_key), None
         except Exception as e:
@@ -125,6 +128,9 @@ class DbQuery:
                     (api_key,)
                 )
                 api_key: dict = await cur.fetchone()
+                if api_key is None:
+                    await self.conn.rollback()
+                    return None, http_error(404, f"API key '{api_key}' not found", None, "api_key_not_found")
                 return ApiKey(**api_key), None
         except Exception as e:
             return None, http_error(400, str(e), None, "unexpected_error")
@@ -341,6 +347,9 @@ class DbQuery:
                     params
                 )
                 new_user: dict[str, Any] = await cur.fetchone()
+                if new_user is None:
+                    await self.conn.rollback()
+                    return None, http_error(400, f"Failed to create or update user '{id}'", None, "failed_create_update_user")
                 await self.conn.commit()
                 return User(**new_user), None
         except Exception as e:
@@ -381,6 +390,9 @@ class DbQuery:
                     )
 
                 user: dict[str, Any] = await cur.fetchone()
+                if user is None:
+                    await self.conn.rollback()
+                    return None, http_error(404, f"User '{id_or_username}' not found", None, "user_not_found")
                 return User(**user), None
         except Exception as e:
             return None, http_error(400, str(e), None, "unexpected_error")
@@ -422,6 +434,9 @@ class DbQuery:
                     params
                 )
                 users: list[dict[str, Any]] = await cur.fetchall()
+                if users is None:
+                    await self.conn.rollback()
+                    return None, http_error(404, "No users found", None, "users_not_found")
                 users_classes: list[User] = []
                 for user in users:
                     users_classes.append(User(**user))
@@ -534,6 +549,9 @@ class DbQuery:
                     params
                 )
                 new_chat: dict[str, Any] = await cur.fetchone()
+                if new_chat is None:
+                    await self.conn.rollback()
+                    return None, http_error(400, f"Failed to create or update chat '{id}'", None, "failed_create_update_chat")
                 await self.conn.commit()
                 return Chat(**new_chat), None
         except Exception as e:
@@ -574,6 +592,9 @@ class DbQuery:
                     )
 
                 chat: dict[str, Any] = await cur.fetchone()
+                if chat is None:
+                    await self.conn.rollback()
+                    return None, http_error(404, f"Chat '{id_or_username}' not found", None, "chat_not_found")
                 return Chat(**chat), None
         except Exception as e:
             return None, http_error(400, str(e), None, "unexpected_error")
@@ -615,6 +636,9 @@ class DbQuery:
                     params
                 )
                 chats: list[dict[str, Any]] = await cur.fetchall()
+                if chats is None:
+                    await self.conn.rollback()
+                    return None, http_error(404, "No chats found", None, "chats_not_found")
                 chats_classes: list[Chat] = []
                 for chat in chats:
                     chats_classes.append(Chat(**chat))
@@ -645,7 +669,7 @@ class DbQuery:
                 )
 
                 if cur.rowcount == 0:
-                    return False, None    
+                    return False, None
 
                 await self.conn.commit()
                 return True, None
