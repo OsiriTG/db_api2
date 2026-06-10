@@ -12,6 +12,13 @@ from .users import (
 )
 from .users import router as router_users
 
+from .chats import (
+    chats_record, chats_unrecord,
+    chats_get,
+    chats_change_language_code, chats_change_zoneinfo
+)
+from .users import router as router_chats
+
 __all__ = [
     "api_keys_activate", "api_keys_deactivate",
     "api_keys_get",
@@ -21,5 +28,10 @@ __all__ = [
     "users_record", "users_unrecord",
     "users_get",
     "users_change_language_code", "users_change_zoneinfo",
-    "router_users"
+    "router_users",
+
+    "chats_record", "chats_unrecord",
+    "chats_get",
+    "chats_change_language_code", "chats_change_zoneinfo",
+    "router_chats"
 ]
