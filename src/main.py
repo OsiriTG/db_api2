@@ -3,7 +3,7 @@ from uvicorn import run
 
 from contextlib import asynccontextmanager
 
-from .api import router_api_keys
+from .api import router_api_keys, router_users, router_chats
 from .database import db
 from .config import API_DOMAIN, API_PORT
 
@@ -18,6 +18,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(router_api_keys)
+app.include_router(router_users)
+app.include_router(router_chats)
 
 if __name__ == "__main__":
     try:
