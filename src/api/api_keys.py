@@ -53,7 +53,7 @@ async def api_keys_activate(
         raise HTTPException(new_api_key['error']['code'], new_api_key)
     return new_api_key
 
-@router.post("/deactivate")
+@router.delete("/deactivate")
 async def api_keys_deactivate(
     target_api_key: str = Header(..., alias="target_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN),
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
@@ -76,7 +76,7 @@ async def api_keys_deactivate(
         raise HTTPException(res['error']['code'], res)
     return res
 
-@router.get("/get")
+@router.post("/get")
 async def api_keys_get(
     target_api_key: str = Header(..., alias="target_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN),
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
@@ -101,7 +101,7 @@ async def api_keys_get(
 
 @router.post("/change/permissions")
 async def api_keys_change_permissions(
-    request = ChangePermissions,    
+    request: ChangePermissions,    
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
@@ -124,7 +124,7 @@ async def api_keys_change_permissions(
 
 @router.post("/change/owner")
 async def api_keys_change_owner(
-    request = ChangeOwner,    
+    request: ChangeOwner,    
     api_key: str = Header(..., alias="your_api_key", min_length=API_KEY_LEN, max_length=API_KEY_LEN)
 ) -> Dict[str, Any]:
     """
