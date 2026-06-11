@@ -3,7 +3,11 @@ from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 from typing import Dict, Optional, Any
 
-from ..config import NAMES_MAX_LEN, USERNAME_MAX_LEN, LANGUAGE_CODE_MAX_LEN, API_KEY_LEN
+from ..config import (
+    NAMES_MAX_LEN, USERNAME_MAX_LEN, LANGUAGE_CODE_MAX_LEN,
+    API_KEY_LEN,
+    ChangeLanguageCode, ChangeZoneinfo
+)
 from ..methods import (
     get_api_key,
     record_user, unrecord_user,
@@ -12,16 +16,6 @@ from ..methods import (
 )
 
 router = APIRouter(prefix="/users")
-
-
-class ChangeLanguageCode(BaseModel):
-    id_or_username: int | str
-    new_language_code: str
-
-class ChangeZoneinfo(BaseModel):
-    id_or_username: int | str
-    new_zoneinfo: str
-
 
 class Record(BaseModel):
     id: int
@@ -41,7 +35,6 @@ class Record(BaseModel):
     allows_users_to_create_topics: Optional[bool] = None
     can_manage_bots: Optional[bool] = None
     zoneinfo: Optional[str] = None
-
 
 @router.post("/record")
 async def users_record(

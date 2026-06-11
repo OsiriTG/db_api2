@@ -6,7 +6,8 @@ from typing import Dict, Optional, Any, Literal
 from ..config import (
     TITLE_MAX_LEN,
     USERNAME_MAX_LEN, NAMES_MAX_LEN, LANGUAGE_CODE_MAX_LEN,
-    API_KEY_LEN
+    API_KEY_LEN,
+    ChangeLanguageCode, ChangeZoneinfo
 )
 from ..methods import (
     get_api_key,
@@ -16,7 +17,6 @@ from ..methods import (
 )
 
 router = APIRouter(prefix="/chats")
-
 
 class Record(BaseModel):
     id: int
@@ -30,15 +30,6 @@ class Record(BaseModel):
     language_code: Optional[str] = Field(None, max_length=LANGUAGE_CODE_MAX_LEN)
     owner_id: Optional[int] = None
     zoneinfo: Optional[str] = None
-
-class ChangeLanguageCode(BaseModel):
-    id_or_username: int | str
-    new_language_code: str
-
-class ChangeZoneinfo(BaseModel):
-    id_or_username: int | str
-    new_zoneinfo: str
-
 
 @router.post("/record")
 async def chats_record(

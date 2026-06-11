@@ -25,3 +25,14 @@ USERNAME_MAX_LEN: int = 32 # Table "users" & "chats"
 LANGUAGE_CODE_MAX_LEN: int = 2 # Table "users" & "chats"
 TYPE_STATES: tuple[str] = ("private", "group", "supergroup", "channel") # Table "chats"
 TITLE_MAX_LEN: int = 128 # Table "chats"
+
+
+from pydantic import BaseModel, Field
+
+class ChangeLanguageCode(BaseModel):
+    id_or_username: int | str
+    new_language_code: str = Field(..., max_length=LANGUAGE_CODE_MAX_LEN)
+
+class ChangeZoneinfo(BaseModel):
+    id_or_username: int | str
+    new_zoneinfo: str
