@@ -17,12 +17,12 @@ from .chats import (
     chats_get,
     chats_change_language_code, chats_change_zoneinfo
 )
-from .users import router as router_chats
+from .chats import router as router_chats
 
 __all__ = [
     "api_keys_activate", "api_keys_deactivate",
     "api_keys_get",
-    "api_keys_change_permissions", "api_keys_change_owner"
+    "api_keys_change_permissions", "api_keys_change_owner",
     "router_api_keys",
 
     "users_record", "users_unrecord",

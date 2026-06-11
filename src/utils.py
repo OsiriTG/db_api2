@@ -23,17 +23,18 @@ def http_error(
     }
 
 def check_names(
-    first_name: str,
+    first_name: str | None = None,
     last_name: str | None = None,
     username: str | None = None
 ) -> dict[str, str | int] | None:
     """Checks the validity of the first name, last name and username fields."""
     data: dict[str, str] = locals().copy(); data.pop("username")
 
-    if not first_name:
-        return http_error(400, "The first name field is empty", "first_name", "missing_required_field")
-    if len(first_name) > NAMES_MAX_LEN:
-        return http_error(400, f"The first name field can be a maximum of {NAMES_MAX_LEN} letters in length", "fist_name", "first_name_too_long")
+    if first_name is not None:
+        if not first_name:
+            return http_error(400, "The first name field is empty", "first_name", "missing_required_field")
+        if len(first_name) > NAMES_MAX_LEN:
+            return http_error(400, f"The first name field can be a maximum of {NAMES_MAX_LEN} letters in length", "fist_name", "first_name_too_long")
 
     if last_name is not None:
         if not last_name:

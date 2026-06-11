@@ -42,7 +42,7 @@ async def record_chat(
         if len(data['title']) > TITLE_MAX_LEN:
             return http_error(400, f"The title field can be a maximum of {TITLE_MAX_LEN} letters in length", "title", "title_too_long")
 
-    data['first_name'] = first_name.strip()
+    if first_name: data['first_name'] = first_name.strip()
     if last_name: data['last_name'] = last_name.strip()
     if username: data['username'] = username.strip().strip("@")
     err = check_names(data['first_name'], data['last_name'], data['username'])
@@ -80,7 +80,7 @@ async def get_chat(
     :return: On success will return dict of :class:`aiogram.types.chat.Chat` & :code:`None` as error. Otherwise, :code:`None` & error in format of :func:`..utils.http_error`.
     """
     if str(id_or_username).strip().startswith("@"):
-        id_or_username = id_or_username.strip().strip("@")
+        id_or_username = str(id_or_username).strip().strip("@")
         err = check_username(id_or_username)
         if err:
             return err
